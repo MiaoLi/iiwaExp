@@ -5,7 +5,7 @@
 Modify the python script for KUKA control to iiwa control
 """
 
-from openravepy import *
+# from openravepy import *
 import rospy
 import roslib
 from time import *
@@ -17,7 +17,7 @@ from numpy import linalg as LA
 from random import randint
 import sys
 from copy import deepcopy
-roslib.load_manifest('IIWA')
+# roslib.load_manifest('IIWA')
 from IIWA.msg import CartState
 from transformations import *
 
@@ -26,10 +26,13 @@ iiwaCartState = CartState()
 def iiwa_cart_imp(Ind):
 	global iiwaCartState
 	print 'start to publish to iiwa cartesian interface'
-	pub1 = rospy.Publisher("/iiwa/cartesian_reference_pose", CartState)
-	pub2 = rospy.Publisher("/iiwa/cartesian_stiffness", Wrench)
-	rospy.Subscriber("/iiwa/cartesian_state", CartState, GetiiwaCartState, queue_size=1)
 	rospy.init_node('IIWACartImpedance', anonymous =True)
+
+	pub1 = rospy.Publisher("/iiwa/cartesian_reference_pose", CartState, queue_size=10)
+	pub2 = rospy.Publisher("/iiwa/cartesian_stiffness", Wrench,queue_size = 10)
+	rospy.Subscriber("/iiwa/cartesian_state", CartState, GetiiwaCartState, queue_size = 1)
+
+	
 	rs = rospy.Rate(100)   # 100hz
 	CartCmdMsg = CartState()
 	StiffCmdMsg = Wrench()
@@ -40,18 +43,27 @@ def iiwa_cart_imp(Ind):
 		sleep(0.1)
 
 	CartCmdMsg=deepcopy(iiwaCartState) # get the robot's initial state
-	StiffCmdMsg.force.x = 1200
-	StiffCmdMsg.force.y = 1200
-	StiffCmdMsg.force.z = 600
-	StiffCmdMsg.torque.x = 700
-	StiffCmdMsg.torque.y = 700
-	StiffCmdMsg.torque.z = 700
+	StiffCmdMsg.force.x = 500
+	StiffCmdMsg.force.y = 500
+	StiffCmdMsg.force.z = 500
+	StiffCmdMsg.torque.x = 200
+	StiffCmdMsg.torque.y = 200
+	StiffCmdMsg.torque.z = 200
     
 
 	CircleRadius =0.03 
 	CircleSegments=300
 	# Set the starting point of the circle
 	CircleStart= array([CartCmdMsg.pose.position.x,CartCmdMsg.pose.position.y,CartCmdMsg.pose.position.z-0.03])
+	
+	OriStart = [CartCmdMsg.pose.orientation.w,CartCmdMsg.pose.orientation.x,CartCmdMsg.pose.orientation.y,CartCmdMsg.pose.orientation.z]
+	rot = quaternion_about_axis(3.14/16.0,(0,1,0))
+	OriGoal = quaternion_multiply(OriStart,rot)
+	# OriCurrentMat = quaternion_matrix(OriStart)				
+	# tmpRot  = rotation_matrix(3.14/8, [0, 1, 0])
+	# tmpGoal = dot(OriCurrentMat,tmpRot)
+	# OriGoal = quaternion_from_matrix(tmpGoal)
+	
 	CircleCenter = array([CartCmdMsg.pose.position.x,CartCmdMsg.pose.position.y+0.03,CartCmdMsg.pose.position.z-0.03])
 	print('------------start the task now -----------')
 
@@ -63,7 +75,7 @@ def iiwa_cart_imp(Ind):
 	bPert = False  # have perturbation or not
 	bOri = False # update the orientation
 
-	deltaApproach=0.01
+	deltaApproach=0.001
 	CntPolish = 0
 	CntInd = 0   #counter of circles
 
@@ -79,18 +91,23 @@ def iiwa_cart_imp(Ind):
 			# CartCmdMsg.pose.position.x= CircleStart[0]
 			# CartCmdMsg.pose.position.y= CircleStart[1]
 			# CartCmdMsg.pose.position.z= CircleStart[2]
-			CartCmdMsg.pose.position.z -= 0.00001
-			# CartCmdMsg.pose.position.x = iiwaCartState.pose.position.x+tmp[0]*deltaApproach/LA.norm(tmp)
-			# CartCmdMsg.pose.position.y = iiwaCartState.pose.position.y+tmp[1]*deltaApproach/LA.norm(tmp)
-			# CartCmdMsg.pose.position.z = iiwaCartState.pose.position.z+tmp[2]*deltaApproach/LA.norm(tmp)
-
-			# tmp = CircleStart - array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z])
+			# CartCmdMsg.pose.position.z -= 0.0001
+			CartCmdMsg.pose.position.x = iiwaCartState.pose.position.x+tmp[0]*deltaApproach/LA.norm(tmp)
+			CartCmdMsg.pose.position.y = iiwaCartState.pose.position.y+tmp[1]*deltaApproach/LA.norm(tmp)
+			CartCmdMsg.pose.position.z = iiwaCartState.pose.position.z+tmp[2]*deltaApproach/LA.norm(tmp)
+			
+			CartCmdMsg.pose.orientation.w =OriGoal[0]
+			CartCmdMsg.pose.orientation.x =OriGoal[1]
+			CartCmdMsg.pose.orientation.y =OriGoal[2]
+			CartCmdMsg.pose.orientation.z =OriGoal[3]
+			print CircleStart[2]
+			tmp = CircleStart - array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z])
 
 			print 'The error is ', LA.norm(tmp)
-			if LA.norm(tmp)<0.01:
+			if LA.norm(tmp[2])<0.01:
 				bApproach  = False
 				bPolishing = True
-				CircleRadius=LA.norm(CircleCenter-array([KUKACart.position.x,KUKACart.position.y,KUKACart.position.z]))            
+				CircleRadius=LA.norm(CircleCenter-array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z]))            
 				print 'CircleRadius is:', CircleRadius  
 				pNext=zeros([3])
 
@@ -104,8 +121,8 @@ def iiwa_cart_imp(Ind):
 			CartCmdMsg.pose.position.x = pNext[0]
 			CartCmdMsg.pose.position.y = pNext[1]
 			CartCmdMsg.pose.position.z = pNext[2]
-			StiffCmdMsg.force.x = 600
-			StiffCmdMsg.force.y = 600
+			StiffCmdMsg.force.x = 500
+			StiffCmdMsg.force.y = 500
 			StiffCmdMsg.force.z = 200
 			
 			if bOri:
