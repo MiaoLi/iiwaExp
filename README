@@ -1,3 +1,6 @@
+# 
+Scripts for communicate with iiwa robot in Cartersian impedance control mode!
+
 # TODO
 (1) Test the code to communicate with iiwa
 (2) Mount the tool to iiwa

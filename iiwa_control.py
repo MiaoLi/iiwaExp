@@ -52,7 +52,7 @@ def iiwa_cart_imp(Ind):
     
 
 	CircleRadius =0.03 
-	CircleSegments=300
+	CircleSegments=400
 	# Set the starting point of the circle
 	CircleStart= array([CartCmdMsg.pose.position.x,CartCmdMsg.pose.position.y,CartCmdMsg.pose.position.z-0.03])
 
@@ -94,15 +94,23 @@ def iiwa_cart_imp(Ind):
 			CartCmdMsg.pose.position.x = iiwaCartState.pose.position.x+tmp[0]*deltaApproach/LA.norm(tmp)
 			CartCmdMsg.pose.position.y = iiwaCartState.pose.position.y+tmp[1]*deltaApproach/LA.norm(tmp)
 			CartCmdMsg.pose.position.z = iiwaCartState.pose.position.z+tmp[2]*deltaApproach/LA.norm(tmp)
-			
-			CartCmdMsg.pose.orientation.w =OriGoal[0]
-			CartCmdMsg.pose.orientation.x =OriGoal[1]
-			CartCmdMsg.pose.orientation.y =OriGoal[2]
-			CartCmdMsg.pose.orientation.z =OriGoal[3]
-			tmp = CircleStart - array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z])
 
-			print 'The error is ', LA.norm(tmp)
-			if LA.norm(tmp[2])<0.01:
+			OriCurrent =[iiwaCartState.pose.orientation.w,iiwaCartState.pose.orientation.x,
+				iiwaCartState.pose.orientation.y,iiwaCartState.pose.orientation.z]
+			tmpOri=OriCurrent-OriGoal
+			# update orientation
+			print 'The position error is ', LA.norm(numpy.array(tmpOri))
+			if LA.norm(numpy.array(tmpOri))>0.01:
+				OriGoaltmp = quaternion_slerp(OriCurrent,OriGoal,0.1)
+				CartCmdMsg.pose.orientation.w =OriGoaltmp[0]
+				CartCmdMsg.pose.orientation.x =OriGoaltmp[1]
+				CartCmdMsg.pose.orientation.y =OriGoaltmp[2]
+				CartCmdMsg.pose.orientation.z =OriGoaltmp[3]
+
+			tmp = CircleStart - array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z])
+			print 'The position error is ', LA.norm(tmp)
+			
+			if LA.norm(tmp)<0.01 and LA.norm(numpy.array(tmpOri)) < 0.02:
 				bApproach  = False
 				bPolishing = True
 				CircleRadius=LA.norm(CircleCenter-array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z]))            
@@ -110,7 +118,7 @@ def iiwa_cart_imp(Ind):
 				pNext=zeros([3])
 
 		if bPolishing:            
-			print '---------start polishing------------'
+			# print '---------start polishing------------'
 			pNext[0] = CircleCenter[0] + CircleRadius*sin(CircleAngle)
 			pNext[1] = CircleCenter[1] - CircleRadius*cos(CircleAngle)
 			pNext[2] = CircleCenter[2]
@@ -161,6 +169,7 @@ def iiwa_cart_imp(Ind):
 					CircleCenter[1] = CircleCenter[1]+0.005 # change the circle center each trial
 
 				CircleRadius=LA.norm(CircleCenter-array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z]))            
+				print 'CircleRadius is:', CircleRadius
 				pNext=zeros([3])
 				CircleAngle=0
 				CntInd=CntInd+1  #Finish one circle
@@ -196,6 +205,7 @@ def GetiiwaCartState(msg):
 def ComputeDesiredOri(pos):
 	# Given the position, compute the orientation of local frame
 	# convert it to quternion
+	pass
 	print 'compute the orientation using learned manifold'
 
 
