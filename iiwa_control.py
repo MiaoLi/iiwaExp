@@ -55,9 +55,9 @@ def iiwa_cart_imp(Ind):
 	CircleSegments=300
 	# Set the starting point of the circle
 	CircleStart= array([CartCmdMsg.pose.position.x,CartCmdMsg.pose.position.y,CartCmdMsg.pose.position.z-0.03])
-	
+
 	OriStart = [CartCmdMsg.pose.orientation.w,CartCmdMsg.pose.orientation.x,CartCmdMsg.pose.orientation.y,CartCmdMsg.pose.orientation.z]
-	rot = quaternion_about_axis(3.14/16.0,(0,1,0))
+	rot = quaternion_about_axis(3.14/16.0,[0,1,0])
 	OriGoal = quaternion_multiply(OriStart,rot)
 	# OriCurrentMat = quaternion_matrix(OriStart)				
 	# tmpRot  = rotation_matrix(3.14/8, [0, 1, 0])
@@ -66,7 +66,6 @@ def iiwa_cart_imp(Ind):
 	
 	CircleCenter = array([CartCmdMsg.pose.position.x,CartCmdMsg.pose.position.y+0.03,CartCmdMsg.pose.position.z-0.03])
 	print('------------start the task now -----------')
-
 
 	idpert = random.randint(50, 350)
 	print 'The index to perturb is ', idpert
@@ -100,7 +99,6 @@ def iiwa_cart_imp(Ind):
 			CartCmdMsg.pose.orientation.x =OriGoal[1]
 			CartCmdMsg.pose.orientation.y =OriGoal[2]
 			CartCmdMsg.pose.orientation.z =OriGoal[3]
-			print CircleStart[2]
 			tmp = CircleStart - array([iiwaCartState.pose.position.x,iiwaCartState.pose.position.y,iiwaCartState.pose.position.z])
 
 			print 'The error is ', LA.norm(tmp)
@@ -206,6 +204,7 @@ if __name__ == '__main__':
 		if len(sys.argv)>1:
 			Ind = int(sys.argv[1])
 		else:
-			Ind = 100  # any big number	     
+			Ind = 100  # any big number
+		raw_input('press to continue')  
 		iiwa_cart_imp(Ind)
 	except rospy.ROSInterruptException: pass
